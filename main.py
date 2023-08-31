@@ -4,6 +4,7 @@ import pygame
 import noise
 import random
 from datetime import datetime
+import math
 
 # funcs
 def toggle_build_menu(building):
@@ -13,10 +14,16 @@ def gen_grass_world():
     return [["grass"]*64]*64
 
 def render_and_update_tiles(world, pos):
-    for row in range(len(world)):
-        for col in range(len(world[0])):
-            screen.blit(TILES[world[row][col]].image, (col*TILE_SIZE-pos[0], row*TILE_SIZE-pos[1]))
-            pass
+    top_bound = max(int(pos[1]/TILE_SIZE),0)
+    left_bound = max(int(pos[0]/TILE_SIZE),0)
+    for row in range(top_bound, min(len(world), top_bound + math.ceil(HEIGHT/TILE_SIZE) + 1)):
+        y = row*TILE_SIZE-pos[1]
+        for col in range(left_bound, min(len(world[0]), left_bound + math.ceil(WIDTH/TILE_SIZE) + 1)):
+            #if y < -TILE_SIZE or y > h:
+                #break
+            x = col*TILE_SIZE-pos[0]
+            #if x > -TILE_SIZE and x < w:
+            screen.blit(TILES[world[row][col]].image, (x, y))
 
 def move(up,down,left,right,acceleration,unit,vel):
     acceleration = [0, 0]
@@ -35,18 +42,18 @@ def move(up,down,left,right,acceleration,unit,vel):
         acceleration[0] = -vel[0]
     return acceleration
         
-def gen_world():
+def gen_world(size):
     random.seed(str(datetime.now()))
-    seed = random.randint(-256, 256)
+    seed = random.randint(0, 256)
     print("GENERATING WORLD WITH SEED: ", seed)
     
     #get some noise
     gen_noise = []
     print(gen_noise)
-    for row in range(64):
+    for row in range(size):
         new_row = []
-        for col in range(64):
-            new_row.append(noise.pnoise2(row/71.0, col/71.0, octaves=6, persistence=0.5, lacunarity=2.0, repeatx=1024, repeaty=1024, base=seed))
+        for col in range(size):
+            new_row.append(noise.pnoise2(row/(size/2+1.127), col/(size/2+1.127), octaves=6, persistence=0.5, lacunarity=2.0, repeatx=1024, repeaty=1024, base=seed))
         gen_noise.append(new_row)
     #now convert the noise to tiles
         
@@ -98,7 +105,7 @@ acceleration = [0, 0]
 position = [0, 0]
 
 #call worldgen func
-world = gen_world()
+world = gen_world(128)
 running = True
 while running:
     # poll for events
