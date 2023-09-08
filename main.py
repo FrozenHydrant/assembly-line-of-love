@@ -7,7 +7,7 @@ from datetime import datetime
 import math
 from collections import deque
 
-# funcs
+# functions
 def main():
     global game_running, FPS, GAME_FONT
     position = [0, 0]
@@ -74,8 +74,8 @@ def search_for_tile(sx, sy, name, max_dist, tiles):
     to_search.append((sx, sy, 0))
     searched = set()
     while len(to_search) > 0:
-        item = to_search.pop()
-        number_hash = item[0]*len(tiles) + item[1]
+        item = to_search.popleft()
+        number_hash = hash(str(item[0]) + "," + str(item[1]))
         if number_hash not in searched and item[0] >= 0 and item[0] < len(tiles) and item[1] >= 0 and item[1] < len(tiles[0]):
             searched.add(number_hash)
             to_search.append((item[0]+1, item[1], item[2]+1))
@@ -104,7 +104,12 @@ def generate_pathing(start_pos, end_pos, world, buildings):
             sy-=1
         place_pathing(sx, sy, world, buildings)
     
-
+def bind(num, low, high):
+    if num < low:
+        num = low
+    elif num > high:
+        num = high
+    return num
        
 #def gen_grass_world():
 #    return [["grass"]*64]*64
@@ -125,15 +130,18 @@ def render_and_update_tiles(world, pos):
 
 #max building size is 10x10
 def render_structures(buildings, pos):
-    top_bound = max(int(pos[1]/TILE_SIZE)-11,0)
-    left_bound = max(int(pos[0]/TILE_SIZE)-11,0)
-    for row in range(top_bound, min(len(buildings), top_bound + math.ceil(HEIGHT/TILE_SIZE) + 11)):
+    top_bound = max(int(pos[1]/TILE_SIZE)-10,0)
+    left_bound = max(int(pos[0]/TILE_SIZE)-10,0)
+    #print(top_bound, left_bound, TILE_SIZE)
+    for row in range(top_bound, min(len(buildings), top_bound + math.ceil(HEIGHT/TILE_SIZE)+20)):
         y = row*TILE_SIZE-pos[1]
-        for col in range(left_bound, min(len(buildings[0]), left_bound + math.ceil(WIDTH/TILE_SIZE) + 11)):
+        for col in range(left_bound, min(len(buildings[0]), left_bound + math.ceil(WIDTH/TILE_SIZE)+20)):
             x = col*TILE_SIZE-pos[0]
             if buildings[row][col] != None and buildings[row][col].name != "paperweight":
                 #if x > -buildings[row][col].size[0] and x < WIDTH and y > -buildings[row][col].size[1] and y < HEIGHT:
-                screen.blit(buildings[row][col].image, (x, y))
+                screen.blit(buildings[row][col].image, (x+buildings[row][col].offset[1]*TILE_SIZE, y+buildings[row][col].offset[0]*TILE_SIZE))
+                #if buildings[row][col].name == "tree":
+                    #print("TREE" + str(datetime.now()))
 
 
 def move(up,down,left,right,unit,vel,fps):
@@ -167,8 +175,8 @@ def move(up,down,left,right,unit,vel,fps):
     return new_velocity
 
 #pos = (row, col)
-def place(build, pos, structures, tiles):
-    if build.size[0] + pos[0] >= len(tiles) or build.size[1] + pos[1] >= len(tiles):
+def place(build, pos, structures, tiles, support):
+    if build.size[0] + pos[0] >= len(tiles) or build.size[1] + pos[1] >= len(tiles) or pos[0] < 0 or pos[1] < 0:
         return False
 
     # check availability
@@ -178,13 +186,13 @@ def place(build, pos, structures, tiles):
             enhanced_col_index = pos[1] + col
             if structures[enhanced_row_index][enhanced_col_index] != None:
                 return False
-            
+    
     for row in range(build.size[0]):
         enhanced_row_index = pos[0] + row
         for col in range(build.size[1]):
             enhanced_col_index = pos[1] + col
             structures[enhanced_row_index][enhanced_col_index] = Paperweight((enhanced_row_index, enhanced_col_index), pos)
-            if tiles[enhanced_row_index][enhanced_col_index].name == "water":
+            if tiles[enhanced_row_index][enhanced_col_index].name == "water" and support:
                 tiles[enhanced_row_index][enhanced_col_index] = Tile("wood", WOOD_IMAGE)
             
     structures[pos[0]][pos[1]] = build
@@ -202,12 +210,27 @@ def gen_structures(tiles):
 
     #generate the school
     school_pos = (random.randint(0, w_size-7), random.randint(0, w_size-11))
-    place(Building("school", SCHOOL_IMAGE, school_pos, (6, 10)), school_pos, gen_structs, tiles)
+    place(Building("school", SCHOOL_IMAGE, school_pos, (6, 10), (0, 0)), school_pos, gen_structs, tiles, True)
+
+    #roads to school
+    directions = [(1,0), (-1,0), (0,1), (0,-1)]
+    for j in range(4):
+        path_pos_x, path_pos_y = school_pos[0]+6, school_pos[1]+5
+        for i in range(25):
+            path_pos_x+=directions[j][0]
+            path_pos_y+=directions[j][1]
+            if(path_pos_x < 0):
+                break
+            place_pathing(path_pos_x, path_pos_y, tiles, gen_structs)
+    
 
     #gen the houses
-    for houses in range(50):
-        place_pos = (random.randint(0, w_size-7), random.randint(0, w_size-7))
-        place(Building("house", HOUSE_IMAGE, place_pos, (6, 6)), place_pos, gen_structs, tiles)
+    for house_count in range(25):
+        place_pos = (bind(school_pos[0] + random.randint(-50, 50), 0, w_size-7), bind(school_pos[1] + random.randint(-50, 50), 0, w_size-7))
+        house_success = place(Building("house", HOUSE_IMAGE, place_pos, (6, 6), (0, 0)), place_pos, gen_structs, tiles, True)
+        if not house_success:
+            house_count -= 1
+            continue
         #print(search_for_tile(place_pos[0], place_pos[1], "water", 80000, tiles))
         manhattan_dist_to_school = abs(place_pos[0]+6 - (school_pos[0]+6)) + abs(place_pos[1]+2 - (school_pos[1]+5))
         path_target = search_for_tile(place_pos[0]+6, place_pos[1]+2, "path", manhattan_dist_to_school, tiles)
@@ -215,6 +238,12 @@ def gen_structures(tiles):
             path_target = (school_pos[0]+6, school_pos[1]+5, None)
         path_target = (path_target[0], path_target[1])
         generate_pathing((place_pos[0]+6, place_pos[1]+2), path_target, tiles, gen_structs)
+
+    for trees_count in range(150):
+        place_pos = (random.randint(0, w_size-4), random.randint(0, w_size-2))
+        if tiles[place_pos[0]][place_pos[1]].name == "grass":
+            place(Building("tree", TREE_IMAGE, place_pos, (3, 1), (-2, 0)), place_pos, gen_structs, tiles, False)
+
     return gen_structs
     
 def gen_world(size):
@@ -249,11 +278,12 @@ def gen_world(size):
     return world
 
 class Building:
-    def __init__(self, name, image, pos, size):
+    def __init__(self, name, image, pos, size, offset):
         self.name = name
         self.image = image
         self.pos = pos
         self.size = size
+        self.offset = offset #offset = (col yoffset, row xoffset) in tiles
 
 class Paperweight(Building):
     def __init__(self, pos, reference_location):
@@ -262,6 +292,7 @@ class Paperweight(Building):
         self.pos = pos
         self.reference_pos = reference_location
         self.size = (1, 1)
+        self.offset = (0, 0)
 
         
 class Tile:
@@ -287,6 +318,7 @@ FPS=144
 #ss = pygame.Surface((2560, 1440), pygame.FULLSCREEN)
 
 #load images
+#scale does (width, height)
 SELECTION = pygame.image.load('images/selection.png')
 BUILD_MENU = pygame.transform.scale(pygame.image.load('images/build_menu.png'), (int(WIDTH/5), int(HEIGHT/3)))
 
@@ -297,6 +329,7 @@ PATH_IMAGE = pygame.transform.scale(pygame.image.load('images/path.png'), (TILE_
 
 SCHOOL_IMAGE = pygame.transform.scale(pygame.image.load('images/school.png'), (TILE_SIZE*10, TILE_SIZE*6))
 HOUSE_IMAGE = pygame.transform.scale(pygame.image.load('images/house_1.png'), (TILE_SIZE*6, TILE_SIZE*6))
+TREE_IMAGE = pygame.transform.scale(pygame.image.load('images/tree.png'), (TILE_SIZE, TILE_SIZE*3))
 
 # convert them
 SELECTION = pygame.Surface.convert(SELECTION)
@@ -309,6 +342,7 @@ PATH_IMAGE = pygame.Surface.convert(PATH_IMAGE)
 
 SCHOOL_IMAGE = pygame.Surface.convert_alpha(SCHOOL_IMAGE)
 HOUSE_IMAGE = pygame.Surface.convert_alpha(HOUSE_IMAGE)
+TREE_IMAGE = pygame.Surface.convert_alpha(TREE_IMAGE)
 
 #call worldgen func
 WORLD = gen_world(128)
