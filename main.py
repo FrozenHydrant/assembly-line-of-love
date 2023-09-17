@@ -7,59 +7,7 @@ from datetime import datetime
 import math
 from collections import deque
 
-# functions
-def main():
-    global game_running, FPS, GAME_FONT
-    position = [0, 0]
-    building = False
-    selected_item = None
-    velocity = [0, 0]
-    acceleration = [0, 0]
-    
-    current_fps = 0
 
-    while game_running:
-        # poll for events
-        # pygame.QUIT event means the user clicked X to close your window
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                game_running = False
-
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_c:
-                    if building:
-                        building = False
-                    else:
-                        building = True
-                    toggle_build_menu(building)
-
-        current_fps = max(clock.get_fps(),1)
-        
-        # movement
-        keys = pygame.key.get_pressed()
-        velocity = move(keys[pygame.K_w],keys[pygame.K_s],keys[pygame.K_a],keys[pygame.K_d],TILE_SIZE,velocity,current_fps)
-        position[0] += int(velocity[0])
-        position[1] += int(velocity[1])
-
-        # fill the screen with a color to wipe away anything from last frame
-        screen.fill("white")
-        
-        # RENDER YOUR GAME HERE
-        render_and_update_tiles(WORLD, position)
-        render_structures(STRUCTURES, position)
-
-        if building:
-            screen.blit(BUILD_MENU, (WIDTH*(4/5), HEIGHT*(2/3)))
-
-        text_surface = GAME_FONT.render(str(position) + " " + str(current_fps), False, (0, 0, 0))
-        screen.blit(text_surface, (0, 0))
-
-        # flip() the display to put your work on screen
-        pygame.display.flip()
-
-        clock.tick(FPS)
-    pygame.quit()
-    
 def toggle_build_menu(building):
     pass
 
@@ -113,36 +61,6 @@ def bind(num, low, high):
        
 #def gen_grass_world():
 #    return [["grass"]*64]*64
-
-def render_and_update_tiles(world, pos):
-    top_bound = max(int(pos[1]/TILE_SIZE),0)
-    left_bound = max(int(pos[0]/TILE_SIZE),0)
-    for row in range(top_bound, min(len(world), top_bound + math.ceil(HEIGHT/TILE_SIZE) + 1)):
-        y = row*TILE_SIZE-pos[1]
-        for col in range(left_bound, min(len(world[0]), left_bound + math.ceil(WIDTH/TILE_SIZE) + 1)):
-            #if y < -TILE_SIZE or y > h:
-                #break
-            x = col*TILE_SIZE-pos[0]
-            #if x > -TILE_SIZE and x < w:
-            #screen.blit(world[row][col].image, (x, y))
-            world[row][col].rend(screen, (x, y))
-            world[row][col].update()
-
-#max building size is 10x10
-def render_structures(buildings, pos):
-    top_bound = max(int(pos[1]/TILE_SIZE)-10,0)
-    left_bound = max(int(pos[0]/TILE_SIZE)-10,0)
-    #print(top_bound, left_bound, TILE_SIZE)
-    for row in range(top_bound, min(len(buildings), top_bound + math.ceil(HEIGHT/TILE_SIZE)+20)):
-        y = row*TILE_SIZE-pos[1]
-        for col in range(left_bound, min(len(buildings[0]), left_bound + math.ceil(WIDTH/TILE_SIZE)+20)):
-            x = col*TILE_SIZE-pos[0]
-            if buildings[row][col] != None and buildings[row][col].name != "paperweight":
-                #if x > -buildings[row][col].size[0] and x < WIDTH and y > -buildings[row][col].size[1] and y < HEIGHT:
-                screen.blit(buildings[row][col].image, (x+buildings[row][col].offset[1]*TILE_SIZE, y+buildings[row][col].offset[0]*TILE_SIZE))
-                #if buildings[row][col].name == "tree":
-                    #print("TREE" + str(datetime.now()))
-
 
 def move(up,down,left,right,unit,vel,fps):
     acceleration = [0, 0]
@@ -277,6 +195,92 @@ def gen_world(size):
         world.append(new_row)
     return world
 
+class Camera:
+    def __init__(self):
+        self.position = [0, 0]
+        self.building = False
+        self.selected_item = None
+        self.velocity = [0, 0]
+        self.acceleration = [0, 0]
+        self.camera = None
+
+class GameInstance:
+    def __init__(self, screen):  
+        self.current_fps = 0
+        self.game_running = True
+        self.camera = Camera()
+        self.screen = screen
+
+    ## REFACTOR THIS SOON
+    def render_and_update_tiles(self, world, pos):
+        top_bound = max(int(pos[1]/TILE_SIZE),0)
+        left_bound = max(int(pos[0]/TILE_SIZE),0)
+        for row in range(top_bound, min(len(world), top_bound + math.ceil(HEIGHT/TILE_SIZE) + 1)):
+            y = row*TILE_SIZE-pos[1]
+            for col in range(left_bound, min(len(world[0]), left_bound + math.ceil(WIDTH/TILE_SIZE) + 1)):
+                x = col*TILE_SIZE-pos[0]
+                world[row][col].rend(self.screen, (x, y))
+                world[row][col].update()
+
+    def render_structures(self, buildings, pos):
+        top_bound = max(int(pos[1]/TILE_SIZE)-10,0)
+        left_bound = max(int(pos[0]/TILE_SIZE)-10,0)
+        #print(top_bound, left_bound, TILE_SIZE)
+        for row in range(top_bound, min(len(buildings), top_bound + math.ceil(HEIGHT/TILE_SIZE)+20)):
+            y = row*TILE_SIZE-pos[1]
+            for col in range(left_bound, min(len(buildings[0]), left_bound + math.ceil(WIDTH/TILE_SIZE)+20)):
+                x = col*TILE_SIZE-pos[0]
+                if buildings[row][col] != None and buildings[row][col].name != "paperweight":
+                    #if x > -buildings[row][col].size[0] and x < WIDTH and y > -buildings[row][col].size[1] and y < HEIGHT:
+                    self.screen.blit(buildings[row][col].image, (x+buildings[row][col].offset[1]*TILE_SIZE, y+buildings[row][col].offset[0]*TILE_SIZE))
+                    #if buildings[row][col].name == "tree":
+                        #print("TREE" + str(datetime.now()))
+                
+    # ensure that game_running is true before this
+    def start_ticking(self):
+        while self.game_running:
+            # poll for events
+            # pygame.QUIT event means the user clicked X to close your window
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    self.game_running = False
+
+                if event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_c:
+                        if self.camera.building:
+                            self.camera.building = False
+                        else:
+                            self.camera.building = True
+                        toggle_build_menu(self.camera.building)
+
+            self.current_fps = max(clock.get_fps(),1)
+            
+            # movement
+            keys = pygame.key.get_pressed()
+            self.camera.velocity = move(keys[pygame.K_w],keys[pygame.K_s],keys[pygame.K_a],keys[pygame.K_d],TILE_SIZE,self.camera.velocity,self.current_fps)
+            self.camera.position[0] += int(self.camera.velocity[0])
+            self.camera.position[1] += int(self.camera.velocity[1])
+
+            # fill the screen with a color to wipe away anything from last frame
+            self.screen.fill("white")
+            
+            # RENDER YOUR GAME HERE
+            self.render_and_update_tiles(WORLD, self.camera.position)
+            self.render_structures(STRUCTURES, self.camera.position)
+
+            if self.camera.building:
+                self.screen.blit(BUILD_MENU, (WIDTH*(4/5), HEIGHT*(2/3)))
+
+            text_surface = GAME_FONT.render(str(self.camera.position) + " " + str(self.current_fps), False, (0, 0, 0))
+            self.screen.blit(text_surface, (0, 0))
+
+            # flip() the display to put your work on screen
+            pygame.display.flip()
+
+            clock.tick(FPS)
+        pygame.quit()
+
+        
 class Building:
     def __init__(self, name, image, pos, size, offset):
         self.name = name
@@ -284,6 +288,7 @@ class Building:
         self.pos = pos
         self.size = size
         self.offset = offset #offset = (col yoffset, row xoffset) in tiles
+
 
 class Paperweight(Building):
     def __init__(self, pos, reference_location):
@@ -311,8 +316,8 @@ pygame.init()
 random.seed(str(datetime.now()))
 pygame.display.set_caption('Assembly Line of Love')
 clock = pygame.time.Clock()
-screen = pygame.display.set_mode((2560,1440),pygame.FULLSCREEN)
-WIDTH, HEIGHT = screen.get_size()
+MAIN_SCREEN = pygame.display.set_mode((2560,1440),pygame.FULLSCREEN)
+WIDTH, HEIGHT = MAIN_SCREEN.get_size()
 TILE_SIZE = int(WIDTH/40)
 FPS=144
 #ss = pygame.Surface((2560, 1440), pygame.FULLSCREEN)
@@ -349,9 +354,11 @@ WORLD = gen_world(128)
 STRUCTURES = gen_structures(WORLD)
 GAME_FONT = pygame.font.SysFont('Comic Sans MS', 30)
 
-#generate_pathing((9,8), (1,4), WORLD, STRUCTURES)
-
 game_running = True
+
+def main():
+    main_instance = GameInstance(MAIN_SCREEN)
+    main_instance.start_ticking()
 
 if __name__ == "__main__":
     main()
