@@ -195,14 +195,25 @@ def gen_world(size):
         world.append(new_row)
     return world
 
+
 class Camera:
     def __init__(self):
         self.position = [0, 0]
         self.building = False
+        self.selected_tab = 0
         self.selected_item = None
         self.velocity = [0, 0]
         self.acceleration = [0, 0]
         self.camera = None
+
+    def buildinate_display(self, screen):
+        screen.blit(BUILD_MENU, (WIDTH*(4/5), HEIGHT*(2/3)))
+        total_tabs = len(BUILDING_TABS)
+        for i in range(total_tabs):
+            screen.blit(BUILD_MENU_TAB, (WIDTH*(4/5) + WIDTH*(1/5) * i/total_tabs, HEIGHT*(2/3)-HEIGHT*(1/12)))
+            screen.blit(BUILDING_TAB_IMAGES[i], (WIDTH*(4/5) + WIDTH*(1/5) * i/total_tabs, HEIGHT*(2/3)-HEIGHT*(1/12)))
+
+
 
 class GameInstance:
     def __init__(self, screen):  
@@ -210,31 +221,36 @@ class GameInstance:
         self.game_running = True
         self.camera = Camera()
         self.screen = screen
+        self.world = None
+        self.structures = None
 
-    ## REFACTOR THIS SOON
-    def render_and_update_tiles(self, world, pos):
+    def init_world(self):
+        self.world = gen_world(128)
+        self.structures = gen_structures(self.world)
+
+    def __render_and_update_tiles(self, pos):
         top_bound = max(int(pos[1]/TILE_SIZE),0)
+        topper_bound = min(len(self.world), top_bound + math.ceil(HEIGHT/TILE_SIZE) + 1)
         left_bound = max(int(pos[0]/TILE_SIZE),0)
-        for row in range(top_bound, min(len(world), top_bound + math.ceil(HEIGHT/TILE_SIZE) + 1)):
+        leftless_bound = min(len(self.world[0]), left_bound + math.ceil(WIDTH/TILE_SIZE) + 1)
+        for row in range(top_bound, topper_bound):
             y = row*TILE_SIZE-pos[1]
-            for col in range(left_bound, min(len(world[0]), left_bound + math.ceil(WIDTH/TILE_SIZE) + 1)):
+            for col in range(left_bound, leftless_bound):
                 x = col*TILE_SIZE-pos[0]
-                world[row][col].rend(self.screen, (x, y))
-                world[row][col].update()
+                self.world[row][col].rend(self.screen, (x, y))
+                self.world[row][col].update()
 
-    def render_structures(self, buildings, pos):
+    def __render_and_update_structures(self, pos):
         top_bound = max(int(pos[1]/TILE_SIZE)-10,0)
         left_bound = max(int(pos[0]/TILE_SIZE)-10,0)
         #print(top_bound, left_bound, TILE_SIZE)
-        for row in range(top_bound, min(len(buildings), top_bound + math.ceil(HEIGHT/TILE_SIZE)+20)):
+        for row in range(top_bound, min(len(self.structures), top_bound + math.ceil(HEIGHT/TILE_SIZE)+20)):
             y = row*TILE_SIZE-pos[1]
-            for col in range(left_bound, min(len(buildings[0]), left_bound + math.ceil(WIDTH/TILE_SIZE)+20)):
+            for col in range(left_bound, min(len(self.structures[0]), left_bound + math.ceil(WIDTH/TILE_SIZE)+20)):
                 x = col*TILE_SIZE-pos[0]
-                if buildings[row][col] != None and buildings[row][col].name != "paperweight":
-                    #if x > -buildings[row][col].size[0] and x < WIDTH and y > -buildings[row][col].size[1] and y < HEIGHT:
-                    self.screen.blit(buildings[row][col].image, (x+buildings[row][col].offset[1]*TILE_SIZE, y+buildings[row][col].offset[0]*TILE_SIZE))
-                    #if buildings[row][col].name == "tree":
-                        #print("TREE" + str(datetime.now()))
+                if self.structures[row][col] != None:
+                    self.structures[row][col].rend(self.screen, (x, y))
+                    self.structures[row][col].update()
                 
     # ensure that game_running is true before this
     def start_ticking(self):
@@ -265,11 +281,11 @@ class GameInstance:
             self.screen.fill("white")
             
             # RENDER YOUR GAME HERE
-            self.render_and_update_tiles(WORLD, self.camera.position)
-            self.render_structures(STRUCTURES, self.camera.position)
+            self.__render_and_update_tiles(self.camera.position)
+            self.__render_and_update_structures(self.camera.position)
 
             if self.camera.building:
-                self.screen.blit(BUILD_MENU, (WIDTH*(4/5), HEIGHT*(2/3)))
+                self.camera.buildinate_display(self.screen)
 
             text_surface = GAME_FONT.render(str(self.camera.position) + " " + str(self.current_fps), False, (0, 0, 0))
             self.screen.blit(text_surface, (0, 0))
@@ -289,6 +305,12 @@ class Building:
         self.size = size
         self.offset = offset #offset = (col yoffset, row xoffset) in tiles
 
+    def rend(self, screen, pos):
+        screen.blit(self.image, (pos[0]+self.offset[1]*TILE_SIZE, pos[1]+self.offset[0]*TILE_SIZE))
+
+    def update(self):
+        pass
+
 
 class Paperweight(Building):
     def __init__(self, pos, reference_location):
@@ -298,6 +320,9 @@ class Paperweight(Building):
         self.reference_pos = reference_location
         self.size = (1, 1)
         self.offset = (0, 0)
+
+    def rend(self, screen, pos):
+        pass
 
         
 class Tile:
@@ -311,6 +336,15 @@ class Tile:
     def update(self):
         pass
 
+
+class InventoryIcon:
+    def __init__(self, name, image):
+        self.name = name
+        self.image = image
+
+    
+
+
 # pygame setup
 pygame.init()
 random.seed(str(datetime.now()))
@@ -319,14 +353,21 @@ clock = pygame.time.Clock()
 MAIN_SCREEN = pygame.display.set_mode((2560,1440),pygame.FULLSCREEN)
 WIDTH, HEIGHT = MAIN_SCREEN.get_size()
 TILE_SIZE = int(WIDTH/40)
+BUILDING_TABS = ["logistics", "logical"]
+BUILDING_TAB_IMAGES = []
 FPS=144
-#ss = pygame.Surface((2560, 1440), pygame.FULLSCREEN)
+#TODO: USE OS TO JOIN FILE PATHS INSTEAD OF HARDCODE
 
 #load images
 #scale does (width, height)
 SELECTION = pygame.image.load('images/selection.png')
-BUILD_MENU = pygame.transform.scale(pygame.image.load('images/build_menu.png'), (int(WIDTH/5), int(HEIGHT/3)))
+BUILD_MENU = pygame.transform.smoothscale(pygame.image.load('images/build_menu/build_menu.png'), (int(WIDTH/5), int(HEIGHT/3)))
 
+#load tabs
+BUILD_MENU_TAB = pygame.transform.smoothscale(pygame.image.load('images/build_menu/tab_contain.png'), (int(WIDTH/(5*len(BUILDING_TABS))), int(HEIGHT/12)))
+for i in range(len(BUILDING_TABS)):
+    BUILDING_TAB_IMAGES.append(pygame.transform.smoothscale(pygame.image.load(f'images/build_menu/tabs/tab_{i}.png'), (int(HEIGHT/12), int(HEIGHT/12))))
+    
 GRASS_IMAGE = pygame.transform.scale(pygame.image.load('images/grass.png'), (TILE_SIZE, TILE_SIZE))
 WATER_IMAGE = pygame.transform.scale(pygame.image.load('images/water.png'), (TILE_SIZE, TILE_SIZE))
 WOOD_IMAGE = pygame.transform.scale(pygame.image.load('images/wood.png'), (TILE_SIZE, TILE_SIZE))
@@ -338,7 +379,9 @@ TREE_IMAGE = pygame.transform.scale(pygame.image.load('images/tree.png'), (TILE_
 
 # convert them
 SELECTION = pygame.Surface.convert(SELECTION)
-BUILD_MENU = pygame.Surface.convert(BUILD_MENU)
+BUILD_MENU = pygame.Surface.convert_alpha(BUILD_MENU)
+for i in range(len(BUILDING_TABS)):
+    BUILDING_TAB_IMAGES[i] = pygame.Surface.convert_alpha(BUILDING_TAB_IMAGES[i])
 
 GRASS_IMAGE = pygame.Surface.convert(GRASS_IMAGE)
 WATER_IMAGE = pygame.Surface.convert(WATER_IMAGE)
@@ -350,14 +393,13 @@ HOUSE_IMAGE = pygame.Surface.convert_alpha(HOUSE_IMAGE)
 TREE_IMAGE = pygame.Surface.convert_alpha(TREE_IMAGE)
 
 #call worldgen func
-WORLD = gen_world(128)
-STRUCTURES = gen_structures(WORLD)
 GAME_FONT = pygame.font.SysFont('Comic Sans MS', 30)
 
 game_running = True
 
 def main():
     main_instance = GameInstance(MAIN_SCREEN)
+    main_instance.init_world()
     main_instance.start_ticking()
 
 if __name__ == "__main__":
