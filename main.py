@@ -360,37 +360,37 @@ FPS=144
 
 #load images
 #scale does (width, height)
-SELECTION = pygame.image.load('images/selection.png')
-BUILD_MENU = pygame.transform.smoothscale(pygame.image.load('images/build_menu/build_menu.png'), (int(WIDTH/5), int(HEIGHT/3)))
+SELECTION_RAW = pygame.image.load('images/selection.png')
+BUILD_MENU_RAW = pygame.transform.smoothscale(pygame.image.load('images/build_menu/build_menu.png'), (int(WIDTH/5), int(HEIGHT/3)))
 
 #load tabs
-BUILD_MENU_TAB = pygame.transform.smoothscale(pygame.image.load('images/build_menu/tab_contain.png'), (int(WIDTH/(5*len(BUILDING_TABS))), int(HEIGHT/12)))
+BUILD_MENU_TAB_RAW = pygame.transform.smoothscale(pygame.image.load('images/build_menu/tab_contain.png'), (int(WIDTH/(5*len(BUILDING_TABS))), int(HEIGHT/12)))
 for i in range(len(BUILDING_TABS)):
     BUILDING_TAB_IMAGES.append(pygame.transform.smoothscale(pygame.image.load(f'images/build_menu/tabs/tab_{i}.png'), (int(HEIGHT/12), int(HEIGHT/12))))
     
-GRASS_IMAGE = pygame.transform.scale(pygame.image.load('images/grass.png'), (TILE_SIZE, TILE_SIZE))
-WATER_IMAGE = pygame.transform.scale(pygame.image.load('images/water.png'), (TILE_SIZE, TILE_SIZE))
-WOOD_IMAGE = pygame.transform.scale(pygame.image.load('images/wood.png'), (TILE_SIZE, TILE_SIZE))
-PATH_IMAGE = pygame.transform.scale(pygame.image.load('images/path.png'), (TILE_SIZE, TILE_SIZE))
+GRASS_IMAGE_RAW = pygame.transform.scale(pygame.image.load('images/grass.png'), (TILE_SIZE, TILE_SIZE))
+WATER_IMAGE_RAW = pygame.transform.scale(pygame.image.load('images/water.png'), (TILE_SIZE, TILE_SIZE))
+WOOD_IMAGE_RAW = pygame.transform.scale(pygame.image.load('images/wood.png'), (TILE_SIZE, TILE_SIZE))
+PATH_IMAGE_RAW = pygame.transform.scale(pygame.image.load('images/path.png'), (TILE_SIZE, TILE_SIZE))
 
-SCHOOL_IMAGE = pygame.transform.scale(pygame.image.load('images/school.png'), (TILE_SIZE*10, TILE_SIZE*6))
-HOUSE_IMAGE = pygame.transform.scale(pygame.image.load('images/house_1.png'), (TILE_SIZE*6, TILE_SIZE*6))
-TREE_IMAGE = pygame.transform.scale(pygame.image.load('images/tree.png'), (TILE_SIZE, TILE_SIZE*3))
+SCHOOL_IMAGE_RAW = pygame.transform.scale(pygame.image.load('images/school.png'), (TILE_SIZE*10, TILE_SIZE*6))
+HOUSE_IMAGE_RAW = pygame.transform.scale(pygame.image.load('images/house_1.png'), (TILE_SIZE*6, TILE_SIZE*6))
+TREE_IMAGE_RAW = pygame.transform.scale(pygame.image.load('images/tree.png'), (TILE_SIZE, TILE_SIZE*3))
 
 # convert them
-SELECTION = pygame.Surface.convert(SELECTION)
-BUILD_MENU = pygame.Surface.convert_alpha(BUILD_MENU)
+SELECTION = pygame.Surface.convert(SELECTION_RAW)
+BUILD_MENU = pygame.Surface.convert_alpha(BUILD_MENU_RAW)
 for i in range(len(BUILDING_TABS)):
     BUILDING_TAB_IMAGES[i] = pygame.Surface.convert_alpha(BUILDING_TAB_IMAGES[i])
 
-GRASS_IMAGE = pygame.Surface.convert(GRASS_IMAGE)
-WATER_IMAGE = pygame.Surface.convert(WATER_IMAGE)
-WOOD_IMAGE = pygame.Surface.convert(WOOD_IMAGE)
-PATH_IMAGE = pygame.Surface.convert(PATH_IMAGE)
+GRASS_IMAGE = pygame.Surface.convert(GRASS_IMAGE_RAW)
+WATER_IMAGE = pygame.Surface.convert(WATER_IMAGE_RAW)
+WOOD_IMAGE = pygame.Surface.convert(WOOD_IMAGE_RAW)
+PATH_IMAGE = pygame.Surface.convert(PATH_IMAGE_RAW)
 
-SCHOOL_IMAGE = pygame.Surface.convert_alpha(SCHOOL_IMAGE)
-HOUSE_IMAGE = pygame.Surface.convert_alpha(HOUSE_IMAGE)
-TREE_IMAGE = pygame.Surface.convert_alpha(TREE_IMAGE)
+SCHOOL_IMAGE = pygame.Surface.convert_alpha(SCHOOL_IMAGE_RAW)
+HOUSE_IMAGE = pygame.Surface.convert_alpha(HOUSE_IMAGE_RAW)
+TREE_IMAGE = pygame.Surface.convert_alpha(TREE_IMAGE_RAW)
 
 #call worldgen func
 GAME_FONT = pygame.font.SysFont('Comic Sans MS', 30)
